@@ -81,4 +81,5 @@ Why are these values important? Since pod is running on Fargate, it will not hav
 
 Another important definition is manifest/ingress.yaml; this will create the ingress resource in the EKS cluster. Since pods will run as Fargate pods, like in ECS, the only supported target type for Fargate is IP. Therefore, [annotation](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#target-type) **alb.ingress.kubernetes.io/target-type: ip** on ingress manifest is a must. This annotation will work with any Kubernetes service type (ClusterIP, NodePort, and Headless). The patch script will also replace keyword SG_ID on ingress definition with the custom security group created in step 5.
 
-### 7. Once the script patched all the required manifest files (under patched folder), the Makefile script will deploy these manifest files to the Kubernetes cluster, and at the end of the process, the script will give the URL of the application.
+### 7. Deploying manifest files
+Once the script patched all the required manifest files (under patched folder), the Makefile script will deploy these manifest files to the Kubernetes cluster, and at the end of the process, the script will give the URL of the application.
