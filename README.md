@@ -34,20 +34,20 @@ To summarize, the install action will perform the following operations:
 6. Patch manifest files required to deploy ALB ingress controller (deployment) and sample application (deployment service and ingress)
 7. Deploy manifest files from the previous step
 
-1. Create an EKS cluster with a default Fargate profile and without any node group
+### 1. Create an EKS cluster with a default Fargate profile and without any node group
 
 On this step, a script (cluster.sh) will call an eksctl command to create the EKS cluster with --without-nodegroup flag. This flag tells eksctl to create the cluster without any node group. The next added flag is --fargate, which will generate a default fargate profile to allow pods on namespace kube-system and default to run as Fargate pod including CoreDNS pods.
 
-2. Create an OIDC provider for the created EKS cluster in IAM
+### 2. Create an OIDC provider for the created EKS cluster in IAM
 
 Since the ALB Ingress Controller pod will use IAM Role for the service account (IRSA), we will need to enable IRSA for the created EKS Cluster by adding its Open ID Connect (OIDC) as an identity provider in the IAM service. 
 
 
-3. Deploy the required Kubernetes RBAC objects for ALB ingress controller
+### 3. Deploy the required Kubernetes RBAC objects for ALB ingress controller
 
 This step will deploy Kubernetes RBAC resources for ALB ingress controller such as service account, cluster role, and cluster role binding. You can find the manifest file for this step under manifest/rbac-role.yaml
 
-4. Create an IAM role and associate it to ALB ingress controller service account
+### 4. Create an IAM role and associate it to ALB ingress controller service account
 
 ALB ingress controller will need to make several AWS API calls to provision ALB components for Kubernetes ingress resource type. Therefore, ALB ingress controller will need an IAM role to authenticate these API calls. In EKS, the ALB ingress controller pod can do this using the IAM role for the service account. 
 
@@ -55,7 +55,7 @@ On this step, we will use irsa.sh script to help create an IAM role that will be
 
 irsa.sh is an enhancement from eksctl create iamserviceaccount command in which it can only attach IAM policy arns. Meanwhile, irsa.sh script will be able to accept both policy arn and policy document. For more information on irsa.sh, go to [eks-irsa-helper GitHub page](https://github.com/rimaulana/eks-irsa-helper)
 
-5. Create a custom security group to allow inbound access to ALB and communication between ALB with Fargate pods
+### 5. Create a custom security group to allow inbound access to ALB and communication between ALB with Fargate pods
 
 By default, the ALB ingress controller will create a security group for the ALB and add this security in a policy of the worker node's security group. By doing this, it allows the communication between the ALB and the backend pods hosted on the worker nodes. 
 
@@ -65,18 +65,20 @@ With the release of new features, such as the managed node group and Fargate pod
 
 In this example, we are creating a cloudformation stack to automate the provisioning of the ALB security group as well as the policy on the additional cluster's control plane security group.
 
-6. Patch manifest files required to deploy ALB ingress controller (deployment) and sample application (deployment, service, and ingress)
+### 6. Patch manifest files required to deploy ALB ingress controller (deployment) and sample application (deployment, service, and ingress)
 
 We need to patch some manifest files before deploying it to the EKS cluster. For ALB ingress controller's deployment file (manifest/alb-ingress.controller.yaml) following are the required modifications. Under spec.template.spec.containers[0].args patch need to be applied to make the value to look like the following
 
+```yaml
 args:
 - --ingress-class=alb
 - --cluster-name=<CLUSTER_NAME>
 - --aws-vpc-id=<VPC_ID>
 - --aws-region=<AWS_REGION>
+```
 
 Why are these values important? Since pod is running on Fargate, it will not have access to the underlying EC2 instance metadata. By providing this value, the ALB ingress controller will not attempt to get these values from the underlying EC2 instance metadata. 
 
 Another important definition is manifest/ingress.yaml; this will create the ingress resource in the EKS cluster. Since pods will run as Fargate pods, like in ECS, the only supported target type for Fargate is IP. Therefore, [annotation](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#target-type) **alb.ingress.kubernetes.io/target-type: ip** on ingress manifest is a must. This annotation will work with any Kubernetes service type (ClusterIP, NodePort, and Headless). The patch script will also replace keyword SG_ID on ingress definition with the custom security group created in step 5.
 
-7. Once the script patched all the required manifest files (under patched folder), the Makefile script will deploy these manifest files to the Kubernetes cluster, and at the end of the process, the script will give the URL of the application.
+### 7. Once the script patched all the required manifest files (under patched folder), the Makefile script will deploy these manifest files to the Kubernetes cluster, and at the end of the process, the script will give the URL of the application.
