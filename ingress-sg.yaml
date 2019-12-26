@@ -1,0 +1,64 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Additional custom security group allowing access to port 80 and 443 for a certain IP CIDR block on EKS Fargate security group
+
+Parameters:
+
+  ClusterName:
+    Type: String
+    Description: The name of the cluster
+
+  VPCID:
+    Type: String
+    Description: EKS cluster VPC ID
+  
+  FargateSGID:
+    Type: String
+    Description: EKS Fargate security group
+
+  AllowedCIDR:
+    Type: String
+    Description: IP CIDR block to be allowed access to port 80 and 443
+
+Resources:
+  
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: !Sub "Allow access to port 80 and 443 on ALB ingress in ${ClusterName} ${AWS::Region}"
+      SecurityGroupEgress: 
+      - DestinationSecurityGroupId: !Ref FargateSGID
+        FromPort: 0
+        IpProtocol: tcp
+        ToPort: 65535
+      SecurityGroupIngress: 
+      - CidrIp: !Ref AllowedCIDR
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+      - CidrIp: !Ref AllowedCIDR
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443
+      Tags: 
+      - Key: Name
+        Value: !Sub '${ClusterName}-${AWS::Region}-ALB-Custom-SecurityGroup'
+      - Key: !Sub 'kubernetes.io/cluster/${ClusterName}'
+        Value: Shared
+      VpcId: !Ref VPCID
+  
+  CustomRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow ALB security group to access EKS Fargate security group
+      GroupId: !Ref FargateSGID
+      SourceSecurityGroupId: !Ref ALBSG
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+
+Outputs:
+  
+  SecurityGroupId:
+    Value: !Ref ALBSG
